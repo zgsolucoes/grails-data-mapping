@@ -75,11 +75,7 @@ public class FindAllByFinder extends DynamicFinder {
                 MethodExpression expression = invocation.getExpressions().remove(0);
                 query.add(expression.createCriterion());
             }
-            Query.Junction disjunction = query.disjunction();
-
-            for (MethodExpression expression : invocation.getExpressions()) {
-                query.add(disjunction, expression.createCriterion());
-            }
+            addDisjunction(query, invocation.getExpressions());
         }
         else {
             for (MethodExpression expression : invocation.getExpressions()) {

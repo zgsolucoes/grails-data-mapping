@@ -58,11 +58,7 @@ public abstract class AbstractFindByFinder extends DynamicFinder {
                 query.add(expression.createCriterion());
             }
 
-            Query.Junction disjunction = query.disjunction();
-
-            for (MethodExpression expression : invocation.getExpressions()) {
-                query.add(disjunction, expression.createCriterion());
-            }
+            addDisjunction(query, invocation.getExpressions());
         }
         else {
             for (MethodExpression expression : invocation.getExpressions()) {

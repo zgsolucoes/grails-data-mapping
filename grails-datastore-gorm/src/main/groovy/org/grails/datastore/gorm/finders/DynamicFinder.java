@@ -741,6 +741,31 @@ public abstract class DynamicFinder extends AbstractFinder implements QueryBuild
         populateArgumentsForCriteria(clazz, query, argMap);
     }
 
+    /**
+     * Adiciona as expressões de um finder "Or" numa disjunção.
+     *
+     * ZG-2497: como no Grails 2 (FindAllByPersistentMethod), expressões que não casam com nada
+     * (InList vazio) são descartadas da disjunção e, se todas forem assim, a consulta recebe o critério
+     * sempre falso na raiz. O critério sempre falso é uma junção, e junção aninhada na disjunção é perdida
+     * pelo GORM Hibernate (Query.addToJunction entrega a junção ainda vazia, traduzida para "1=1").
+     */
+    protected static void addDisjunction(Query query, List<MethodExpression> expressions) {
+        List<MethodExpression> effective = new ArrayList<MethodExpression>(expressions.size());
+        for (MethodExpression expression : expressions) {
+            if (!expression.matchesNothing()) {
+                effective.add(expression);
+            }
+        }
+        if (effective.isEmpty() && !expressions.isEmpty()) {
+            query.add(expressions.get(0).createCriterion());
+            return;
+        }
+        Query.Junction disjunction = query.disjunction();
+        for (MethodExpression expression : effective) {
+            query.add(disjunction, expression.createCriterion());
+        }
+    }
+
 
     private static String calcPropertyName(String queryParameter, String clause) {
         String propName;

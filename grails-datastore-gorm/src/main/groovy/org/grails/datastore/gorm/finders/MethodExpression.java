@@ -43,6 +43,14 @@ public abstract class MethodExpression {
 
     public abstract Query.Criterion createCriterion();
 
+    /**
+     * ZG-2497: indica que a expressão não casa com nenhuma linha (ex.: {@code InList} com coleção
+     * vazia), para os finders a descartarem de uma disjunção, como fazia o Grails 2.
+     */
+    boolean matchesNothing() {
+        return false;
+    }
+
     protected MethodExpression(Class<?> targetClass, String propertyName) {
         this.propertyName = propertyName;
     }
@@ -256,9 +264,30 @@ public abstract class MethodExpression {
             super(propertyName);
         }
 
+        /**
+         * ZG-2497: como no Grails 2 (grails-datastore-gorm-hibernate 3.1.1,
+         * AbstractClausedStaticPersistentMethod$GrailsMethodExpression.FORCE_NO_RESULTS), coleção
+         * vazia ou nula vira um critério que não devolve nada, em vez de {@code in ()} (SQL inválido
+         * no Postgres). A contradição "is null and is not null" é falsa em qualquer datastore e é
+         * traduzida pelo adapter Hibernate sem alteração; um {@code Query.Junction} vazio não serve
+         * (o Hibernate o traduz para {@code 1=1}). Por ser junção, não pode ir dentro da disjunção
+         * de um finder "Or": ver {@link DynamicFinder#addDisjunction}.
+         */
         @Override
         public Query.Criterion createCriterion() {
-            return Restrictions.in(propertyName, (Collection<?>) arguments[0]);
+            Collection<?> values = (Collection<?>) arguments[0];
+            if (matchesNothing()) {
+                return new Query.Conjunction()
+                        .add(Restrictions.isNull(propertyName))
+                        .add(Restrictions.isNotNull(propertyName));
+            }
+            return Restrictions.in(propertyName, values);
+        }
+
+        @Override
+        boolean matchesNothing() {
+            Object values = arguments == null ? null : arguments[0];
+            return values == null || ((Collection<?>) values).isEmpty();
         }
 
         @Override

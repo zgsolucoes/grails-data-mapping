@@ -67,11 +67,7 @@ public class CountByFinder extends DynamicFinder implements QueryBuildingFinder 
 
         String operatorInUse = invocation.getOperator();
         if (operatorInUse != null && operatorInUse.equals(OPERATOR_OR)) {
-            Query.Junction disjunction = q.disjunction();
-
-            for (MethodExpression expression : invocation.getExpressions()) {
-                q.add(disjunction, expression.createCriterion());
-            }
+            addDisjunction(q, invocation.getExpressions());
         }
         else {
             for (MethodExpression expression : invocation.getExpressions()) {
