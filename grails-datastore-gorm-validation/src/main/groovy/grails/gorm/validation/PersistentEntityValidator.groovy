@@ -236,6 +236,13 @@ class PersistentEntityValidator implements CascadingValidator, ConstrainedEntity
             errors.setNestedPath(buildNestedPath(nestedPath, propertyName, indexOrKey))
 
             for (PersistentProperty associatedPersistentProperty : associatedPersistentProperties) {
+                // Skip the other side of a bidirectional association BEFORE validating its constraints, as Grails 2
+                // (GrailsDomainClassValidator.cascadeValidationToOne) did: a custom validator on the other side that
+                // validates its elements re-enters this cascade (child -> parent -> child ...) until StackOverflowError
+                if (associatedPersistentProperty == otherSide) {
+                    continue
+                }
+
                 if (association.isEmbedded() && EMBEDDED_EXCLUDES.contains(associatedPersistentProperty.getName())) {
                     continue
                 }
@@ -244,11 +251,6 @@ class PersistentEntityValidator implements CascadingValidator, ConstrainedEntity
                 if (associatedConstrainedProperties.containsKey(associatedPropertyName)) {
                     ConstrainedProperty associatedConstrainedProperty = associatedConstrainedProperties.get(associatedPropertyName)
                     validatePropertyWithConstraint(associatedObject, errors.getNestedPath() + associatedPropertyName, associatedReflector, errors, associatedConstrainedProperty, associatedPersistentProperty)
-                }
-
-                // Don't continue cascade if the the other side is equal to avoid stack overflow
-                if (associatedPersistentProperty == otherSide) {
-                    continue
                 }
 
                 if (associatedPersistentProperty instanceof Association) {
