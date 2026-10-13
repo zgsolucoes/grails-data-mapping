@@ -22,6 +22,20 @@ public class CustomizableRollbackTransactionAttribute extends RuleBasedTransacti
     private static final long serialVersionUID = 1L;
     private boolean inheritRollbackOnly = true;
     private String connection;
+    /**
+     * ZeroGlosa (ZG-2497): what {@link #rollbackOn(Throwable)} answers when no rollback rule matches.
+     * <ul>
+     *     <li>{@code false}: Grails 2.3 / Spring rule — only {@link RuntimeException} and {@link Error} roll back; a checked
+     *     exception propagates and the transaction commits (in a participating transaction the caller that catches it
+     *     commits normally instead of getting an UnexpectedRollbackException).</li>
+     *     <li>{@code true}: GORM 6 rule — any exception rolls back.</li>
+     * </ul>
+     * The no-argument constructor (the one the {@code @Transactional}/{@code @ReadOnly} AST transformation calls, so classes
+     * already compiled in plugins get it too) uses the Grails 2.3 rule. The copy constructors used by
+     * {@code withTransaction} ({@code GrailsTransactionTemplate(transactionManager, TransactionDefinition)}) keep the GORM 6
+     * rule, as do {@code GrailsTransactionTemplate(transactionManager)} and the {@code TransactionService}.
+     */
+    private boolean rollbackOnAnyException = false;
 
     public CustomizableRollbackTransactionAttribute() {
         super();
@@ -33,6 +47,7 @@ public class CustomizableRollbackTransactionAttribute extends RuleBasedTransacti
 
     public CustomizableRollbackTransactionAttribute(org.springframework.transaction.interceptor.TransactionAttribute other) {
         super();
+        this.rollbackOnAnyException = true;
         setPropagationBehavior(other.getPropagationBehavior());
         setIsolationLevel(other.getIsolationLevel());
         setTimeout(other.getTimeout());
@@ -42,6 +57,7 @@ public class CustomizableRollbackTransactionAttribute extends RuleBasedTransacti
 
     public CustomizableRollbackTransactionAttribute(TransactionDefinition other) {
         super();
+        this.rollbackOnAnyException = true;
         setPropagationBehavior(other.getPropagationBehavior());
         setIsolationLevel(other.getIsolationLevel());
         setTimeout(other.getTimeout());
@@ -54,8 +70,10 @@ public class CustomizableRollbackTransactionAttribute extends RuleBasedTransacti
     }
 
     public CustomizableRollbackTransactionAttribute(RuleBasedTransactionAttribute other) {
+        this.rollbackOnAnyException = true;
         if(other instanceof CustomizableRollbackTransactionAttribute) {
             this.inheritRollbackOnly = ((CustomizableRollbackTransactionAttribute)other).inheritRollbackOnly;
+            this.rollbackOnAnyException = ((CustomizableRollbackTransactionAttribute)other).rollbackOnAnyException;
         }
     }
 
@@ -87,11 +105,26 @@ public class CustomizableRollbackTransactionAttribute extends RuleBasedTransacti
         if (winner == null) {
             log.trace("No relevant rollback rule found: applying default rules");
 
-            // always rollback regardless if it is a checked or unchecked exception since Groovy doesn't differentiate those
-            return true;
+            if (rollbackOnAnyException) {
+                // GORM 6: always rollback regardless if it is a checked or unchecked exception since Groovy doesn't differentiate those
+                return true;
+            }
+            // Grails 2.3 (ZG-2497): RuntimeException || Error
+            return super.rollbackOn(ex);
         }
 
         return !(winner instanceof NoRollbackRuleAttribute);
+    }
+
+    /**
+     * @return Whether any exception rolls back when no rollback rule matches (GORM 6) instead of only RuntimeException/Error (Grails 2.3)
+     */
+    public boolean isRollbackOnAnyException() {
+        return rollbackOnAnyException;
+    }
+
+    public void setRollbackOnAnyException(boolean rollbackOnAnyException) {
+        this.rollbackOnAnyException = rollbackOnAnyException;
     }
     public boolean isInheritRollbackOnly() {
         return inheritRollbackOnly;

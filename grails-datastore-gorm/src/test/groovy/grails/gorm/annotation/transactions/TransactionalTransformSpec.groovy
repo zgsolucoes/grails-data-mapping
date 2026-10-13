@@ -700,12 +700,12 @@ new BookService()
         transactionManager = getPlatformTransactionManager()
         bookService.transactionManager = transactionManager
 
-        and: "A transactional method throw RuntimeException"
+        and: "A transactional method throw a checked Exception"
         bookService.throwException()
 
-        then: "The transaction was rolled back"
+        then: "The transaction was committed: without a matching rule only RuntimeException/Error roll back, as in Grails 2.3 (ZG-2497)"
         thrown(TestTransactionException)
-        transactionManager.transactionRolledBack == true
+        transactionManager.transactionRolledBack == false
     }
 
     @Issue("GRAILS-10564")
