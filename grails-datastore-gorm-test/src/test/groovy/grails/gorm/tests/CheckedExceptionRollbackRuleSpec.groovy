@@ -1,7 +1,10 @@
 package grails.gorm.tests
 
 import grails.gorm.transactions.ReadOnly
+import grails.gorm.transactions.TransactionService
 import grails.gorm.transactions.Transactional
+import org.grails.datastore.mapping.simple.SimpleMapDatastore
+import spock.lang.Unroll
 import org.springframework.transaction.support.TransactionSynchronization
 import org.springframework.transaction.support.TransactionSynchronizationAdapter
 import org.springframework.transaction.support.TransactionSynchronizationManager
@@ -16,7 +19,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * GORM 6.1 (upstream): CustomizableRollbackTransactionAttribute.rollbackOn devolve true sem regra que case → exceção checada
  * marca rollback-only e o commit do chamador estoura UnexpectedRollbackException.
  *
- * withTransaction/withNewTransaction (GormStaticApi) mantêm a regra do GORM 6: desfazem em qualquer exceção.
+ * withTransaction/withNewTransaction (GormStaticApi) e o TransactionService seguem a mesma regra do Grails 2.3 (e2e-0072): no
+ * Grails 2.3.11 o GormStaticApi 3.1.1 usava GrailsTransactionTemplate(tm, TransactionDefinition), que avaliava o rollback com
+ * um DefaultTransactionAttribute (RuntimeException || Error).
  *
  * O caso da transação participante (chamador que captura a exceção) está no CheckedExceptionParticipatingTransactionSpec
  * (grails-datastore-gorm, H2): o DatastoreTransactionManager do SimpleMapDatastore não propaga o rollback-only global.
@@ -83,49 +88,51 @@ class CheckedExceptionRollbackRuleSpec extends GormDatastoreSpec {
         service.desfecho == 'rollback'
     }
 
-    void "withTransaction: exceção checada desfaz (regra do GORM 6 mantida)"() {
+    @Unroll
+    void "#chamada: exceção checada comita o que o closure fez e a exceção sobe (Grails 2.3)"() {
         given:
         String desfecho = null
 
         when:
-        Person.withTransaction {
+        executa.call {
             registraDesfecho { desfecho = it }
             throw new RollbackRuleCheckedException()
         }
 
         then:
         thrown(RollbackRuleCheckedException)
-        desfecho == 'rollback'
+        desfecho == 'commit'
+
+        where:
+        chamada                    | executa
+        'withTransaction'          | { Closure c -> Person.withTransaction(c) }
+        'withTransaction(Map)'     | { Closure c -> Person.withTransaction([readOnly: false], c) }
+        'withNewTransaction'       | { Closure c -> Person.withNewTransaction(c) }
+        'withNewTransaction(Map)'  | { Closure c -> Person.withNewTransaction([readOnly: false], c) }
+        'TransactionService'       | { Closure c -> new SimpleMapDatastore().getService(TransactionService).withTransaction(c) }
+        'TransactionService(REQUIRES_NEW)' | { Closure c -> new SimpleMapDatastore().getService(TransactionService).withNewTransaction(c) }
     }
 
-    void "withNewTransaction: exceção checada desfaz (regra do GORM 6 mantida)"() {
+    @Unroll
+    void "#chamada: RuntimeException e Error continuam desfazendo"() {
         given:
         String desfecho = null
 
         when:
-        Person.withNewTransaction {
+        executa.call {
             registraDesfecho { desfecho = it }
-            throw new RollbackRuleCheckedException()
+            throw erro
         }
 
         then:
-        thrown(RollbackRuleCheckedException)
+        thrown(Throwable)
         desfecho == 'rollback'
-    }
 
-    void "withTransaction(Map): exceção checada desfaz (regra do GORM 6 mantida)"() {
-        given:
-        String desfecho = null
-
-        when:
-        Person.withTransaction([readOnly: false]) {
-            registraDesfecho { desfecho = it }
-            throw new RollbackRuleCheckedException()
-        }
-
-        then:
-        thrown(RollbackRuleCheckedException)
-        desfecho == 'rollback'
+        where:
+        chamada                    | erro                                  | executa
+        'withTransaction'          | new IllegalStateException('runtime')  | { Closure c -> Person.withTransaction(c) }
+        'withTransaction'          | new AssertionError('error')           | { Closure c -> Person.withTransaction(c) }
+        'withNewTransaction'       | new IllegalStateException('runtime')  | { Closure c -> Person.withNewTransaction(c) }
     }
 
     static void registraDesfecho(Closure aoFim) {

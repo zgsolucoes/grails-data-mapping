@@ -19,7 +19,8 @@ import spock.lang.Specification
  * GORM 6.1 upstream: CustomizableRollbackTransactionAttribute.rollbackOn devolvia true → a transação externa era marcada
  * rollback-only: o commit dela é desfeito (num proxy Spring/TransactionInterceptor, UnexpectedRollbackException).
  *
- * O caminho do withTransaction (GrailsTransactionTemplate(tm, TransactionDefinition)) continua desfazendo em qualquer exceção.
+ * O caminho do withTransaction (GrailsTransactionTemplate(tm, TransactionDefinition)) e o GrailsTransactionTemplate(tm) seguem a
+ * mesma regra (e2e-0072): no Grails 2.3.11 os dois avaliavam o rollback com um DefaultTransactionAttribute.
  */
 class CheckedExceptionParticipatingTransactionSpec extends Specification {
 
@@ -72,7 +73,7 @@ class CheckedExceptionParticipatingTransactionSpec extends Specification {
         externo.desfecho == 'rollback'
     }
 
-    void "withTransaction (GrailsTransactionTemplate com TransactionDefinition): exceção checada desfaz"() {
+    void "withTransaction (GrailsTransactionTemplate com TransactionDefinition): exceção checada comita (Grails 2.3)"() {
         given:
         String desfecho = null
 
@@ -84,10 +85,10 @@ class CheckedExceptionParticipatingTransactionSpec extends Specification {
 
         then:
         thrown(ExcecaoChecadaParticipante)
-        desfecho == 'rollback'
+        desfecho == 'commit'
     }
 
-    void "GrailsTransactionTemplate(transactionManager): exceção checada desfaz (sem mudança)"() {
+    void "GrailsTransactionTemplate(transactionManager): exceção checada comita (Grails 2.3)"() {
         given:
         String desfecho = null
 
@@ -99,7 +100,7 @@ class CheckedExceptionParticipatingTransactionSpec extends Specification {
 
         then:
         thrown(ExcecaoChecadaParticipante)
-        desfecho == 'rollback'
+        desfecho == 'commit'
     }
 
     static void registraDesfecho(Closure aoFim) {

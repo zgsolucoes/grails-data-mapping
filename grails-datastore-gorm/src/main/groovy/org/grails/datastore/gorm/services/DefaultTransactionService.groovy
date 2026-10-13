@@ -65,7 +65,7 @@ class DefaultTransactionService implements TransactionService, Service {
             @ClosureParams(value = SimpleType.class, options = "org.springframework.transaction.TransactionStatus") Closure<T> callable) {
         if(datastore instanceof TransactionCapableDatastore) {
             PlatformTransactionManager transactionManager = ((TransactionCapableDatastore) datastore).transactionManager
-            def txDef = new CustomizableRollbackTransactionAttribute(propagationBehavior: TransactionDefinition.PROPAGATION_REQUIRES_NEW, rollbackOnAnyException: true)
+            def txDef = new CustomizableRollbackTransactionAttribute(propagationBehavior: TransactionDefinition.PROPAGATION_REQUIRES_NEW)
             GrailsTransactionTemplate template = new GrailsTransactionTemplate(transactionManager, txDef)
             return template.execute(callable)
         }
@@ -103,12 +103,7 @@ class DefaultTransactionService implements TransactionService, Service {
 
     @CompileDynamic
     protected CustomizableRollbackTransactionAttribute newDefinition(Map definition) {
-        // ZeroGlosa (ZG-2497): withTransaction keeps rolling back on any exception (GORM 6 rule)
-        def attribute = new CustomizableRollbackTransactionAttribute(definition)
-        if (!definition.containsKey("rollbackOnAnyException")) {
-            attribute.rollbackOnAnyException = true
-        }
-        attribute
+        new CustomizableRollbackTransactionAttribute(definition)
     }
 
     @Override

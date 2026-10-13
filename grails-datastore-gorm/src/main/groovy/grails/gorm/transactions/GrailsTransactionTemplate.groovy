@@ -44,15 +44,7 @@ class GrailsTransactionTemplate {
     private org.springframework.transaction.support.TransactionTemplate transactionTemplate
 
     GrailsTransactionTemplate(PlatformTransactionManager transactionManager) {
-        this(transactionManager, rollbackOnAnyException())
-    }
-
-    // ZeroGlosa (ZG-2497): keeps the GORM 6 rule (any exception rolls back) for templates created without an attribute;
-    // only @Transactional/@ReadOnly (no-argument CustomizableRollbackTransactionAttribute) use the Grails 2.3 rule
-    private static CustomizableRollbackTransactionAttribute rollbackOnAnyException() {
-        CustomizableRollbackTransactionAttribute attribute = new CustomizableRollbackTransactionAttribute()
-        attribute.rollbackOnAnyException = true
-        return attribute
+        this(transactionManager, new CustomizableRollbackTransactionAttribute())
     }
 
     GrailsTransactionTemplate(PlatformTransactionManager transactionManager, TransactionDefinition transactionDefinition) {
