@@ -111,18 +111,12 @@ class PersistentEntityValidator implements CascadingValidator, ConstrainedEntity
         if (association instanceof ToOne) {
             Object associatedObject = reflector.getProperty(parent, propertyName)
 
+            // Sem cascata, nada a fazer, como no Grails 2.3.11 (GrailsDomainClassValidator.cascadeValidationToOne só
+            // retornava). O GORM 6 (grails-core#9820) copiava para o dono os erros já registrados no associado: um
+            // associado validado antes (ex.: pelo flush) e inválido derrubava o save do dono (ZG-2497, e2e-0053).
             if(associatedObject != null && proxyHandler?.isInitialized(associatedObject)) {
                 if(association.doesCascadeValidate(associatedObject)) {
                     cascadeValidationToOne(parent, propertyName, (ToOne)association, errors, reflector, associatedObject, null, validatedObjects)
-                }
-                else {
-                    Errors existingErrors = retrieveErrors(associatedObject)
-                    if(existingErrors != null && existingErrors.hasErrors()) {
-                        for(error in existingErrors.fieldErrors) {
-                            String path = "${propertyName}." +error.field
-                            errors.rejectValue(path, error.code, error.arguments, error.defaultMessage)
-                        }
-                    }
                 }
             }
         }
