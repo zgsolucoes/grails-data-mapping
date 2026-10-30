@@ -87,7 +87,7 @@ subprojects {
         documentation
     }
    version = "${projectVersion}.${releaseType}"
-   group = "org.grails"
+   group = "org.grails.zeroglosa"
 
     if(project.name.contains('grails-plugins') || project.name.contains('grails2-plugins')) {
         project.tasks.all { Task t ->
@@ -277,6 +277,17 @@ dependencies {
 
 task install(dependsOn: subprojects*.tasks*.withType(PublishToMavenLocal))
 
+//apply plugin: "maven"
+//uploadArchives {
+//    repositories.mavenDeployer {
+//        repository(url: "$artifactory_contextUrl/libs-release-local/") {
+//            authentication(userName: artifactory_user, password: artifactory_password)
+//        }
+//        snapshotRepository(url: "$artifactory_contextUrl/libs-snapshot-local/") {
+//            authentication(userName: artifactory_user, password: artifactory_password)
+//        }
+//    }
+//}
 
 task test(dependsOn: getTasksByName("test", true)) {
      doLast {
