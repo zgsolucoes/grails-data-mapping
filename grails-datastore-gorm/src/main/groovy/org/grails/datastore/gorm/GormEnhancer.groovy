@@ -235,7 +235,7 @@ class GormEnhancer implements Closeable {
                     }
                 }
 	    }
-        }        
+        }
         return buildNamedCriteriaProxy(entity, namedQueries, queryName, args)
     }
 
@@ -268,7 +268,8 @@ class GormEnhancer implements Closeable {
                     return Tenants.currentId( multiTenantCapableDatastore )
                 }
                 else {
-                    return ConnectionSource.DEFAULT
+                    final List<String> datasources = defaultDatastore.getMappingContext().getPersistentEntity(entity.getName()).getMapping().mappedForm.datasources
+                    return datasources.empty ? ConnectionSource.DEFAULT : datasources.first()
                 }
             }
             else {
@@ -559,7 +560,8 @@ class GormEnhancer implements Closeable {
     }
 
     protected boolean appliesToDatastore(Datastore datastore, PersistentEntity entity) {
-        !entity.isExternal()
+
+        !entity.isExternal() && datastore.getMappingContext().getPersistentEntity(entity.getName()) != null
     }
 
 
