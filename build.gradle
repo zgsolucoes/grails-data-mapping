@@ -22,7 +22,7 @@ project.ext {
 //    releaseType = "RELEASE"
 //    releaseType = "M2"
     // releaseType = "RC1"
-    releaseType = "BUILD-SNAPSHOT"
+    releaseType = "ZG1"
 
     // overall project version
     projectVersion = "${projectMajorVersion}.${projectMinorVersion}.${projectPatchVersion}"
